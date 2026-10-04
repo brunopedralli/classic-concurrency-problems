@@ -17,11 +17,13 @@
 			"settings": {
 				"editor.formatOnSave": true,
 				"files.trimTrailingWhitespace": true,
-				"files.insertFinalNewline": true
+				"files.insertFinalNewline": true,
+				"go.lintTool": "golangci-lint-v2",
+				"go.lintOnSave": "workspace"
 			}
 		}
 	},
-	"postCreateCommand": "go version && docker --version && go mod download"
+	"postCreateCommand": "go version && docker --version && go mod download && curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.14.0"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
