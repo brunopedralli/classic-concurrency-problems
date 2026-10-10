@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -47,18 +48,22 @@ func fork(i int) {
 	}
 }
 
-func philosopher(i int) {
+func philosopher(i int, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for j := 0; j < R; j++ {
 		think(i)
 		takeForks(i)
 		eat(i)
 		releaseForks(i)
-		fmt.Printf("\n[INFO] Philosopher %d finished eating! Meals eaten: %d/%d\n\n", i, j+1, R)
+		fmt.Printf("[INFO] Philosopher %d finished eating! Meals eaten: %d/%d\n", i, j+1, R)
 	}
-	fmt.Printf("\n[FINISHED] Philosopher %d has eaten all of his %d meals!\n\n", i, R)
+	fmt.Printf("[INFO] Philosopher %d has eaten all of his %d meals!\n", i, R)
 }
 
 func main() {
+	var wg sync.WaitGroup
+	wg.Add(N)
+
 	for i := 0; i < LIMIT - 1; i++ {
 		limit <- struct{}{}
 	}
@@ -69,7 +74,9 @@ func main() {
 	}
 
 	for i := 0; i < N; i++ {
-		go philosopher(i)
+		go philosopher(i, &wg)
 	}
-	select {}
+
+	wg.Wait()
+	fmt.Print("\n[INFO] Done! All philosophers have eaten all of their meals successfully\n")
 }
