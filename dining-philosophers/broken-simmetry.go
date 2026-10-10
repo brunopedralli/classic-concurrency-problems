@@ -48,16 +48,18 @@ func fork(i int) {
 }
 
 func philosopher(i int) {
-	think(i)
+	for j := 0; j < R; j++ {
+		think(i)
 
-	if i % 2 == 0 {
-		takeLeftForkFirst(i)
-	} else {
-		takeRightForkFirst(i)
+		if i % 2 == 0 {
+			takeLeftForkFirst(i)
+		} else {
+			takeRightForkFirst(i)
+		}
+
+		eat(i)
+		releaseForks(i)
 	}
-
-	eat(i)
-	releaseForks(i)
 }
 
 func main() {
@@ -66,10 +68,8 @@ func main() {
 		go fork(i)
 	}
 
-	for i := 0; i < R; i++ {
-		for j := 0; j < N; j++ {
-			go philosopher(j)
-		}
+	for i := 0; i < N; i++ {
+		go philosopher(i)
 	}
 	select {}
 }
