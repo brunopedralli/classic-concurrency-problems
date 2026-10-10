@@ -9,8 +9,8 @@ const N = 5 // philosophers/forks
 const R = 2 // iterations
 const LIMIT = 3 // number of philosophers dining at a time
 
-var forks [N]chan bool
-var limit = make(chan bool, LIMIT)
+var forks [N]chan struct{}
+var limit = make(chan struct{}, LIMIT)
 
 
 func think(i int) {
@@ -30,9 +30,9 @@ func takeForks(i int) {
 }
 
 func releaseForks(i int) {
-	limit <- true
-	forks[i] <- true
-	forks[(i+1)%N] <- true
+	limit <- struct{}{}
+	forks[i] <- struct{}{}
+	forks[(i+1)%N] <- struct{}{}
 }
 
 /*
@@ -42,7 +42,7 @@ This makes sure every fork will be correctly taken and released by each philosop
 */
 func fork(i int) {
 	for {
-		forks[i] <- true
+		forks[i] <- struct{}{}
 		<-forks[i]
 	}
 }
@@ -56,11 +56,11 @@ func philosopher(i int) {
 
 func main() {
 	for i := 0; i < LIMIT - 1; i++ {
-		limit <- true
+		limit <- struct{}{}
 	}
 
 	for i := 0; i < N; i++ {
-		forks[i] = make(chan bool)
+		forks[i] = make(chan struct{})
 		go fork(i)
 	}
 

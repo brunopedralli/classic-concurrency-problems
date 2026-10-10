@@ -8,7 +8,7 @@ import (
 const N = 5 // philosophers/forks
 const R = 2 // iterations
 
-var forks [N]chan bool
+var forks [N]chan struct{}
 
 func think(i int) {
 	fmt.Printf("Hmmm... Philosopher %d thinking...\n", i)
@@ -26,8 +26,8 @@ func takeForks(i int) {
 }
 
 func releaseForks(i int) {
-	forks[i] <- true
-	forks[(i+1)%N] <- true
+	forks[i] <- struct{}{}
+	forks[(i+1)%N] <- struct{}{}
 }
 
 /*
@@ -37,7 +37,7 @@ This makes sure every fork will be correctly taken and released by each philosop
 */
 func fork(i int) {
 	for {
-		forks[i] <- true
+		forks[i] <- struct{}{}
 		<-forks[i]
 	}
 }
@@ -51,7 +51,7 @@ func philosopher(i int) {
 
 func main() {
 	for i := 0; i < N; i++ {
-		forks[i] = make(chan bool)
+		forks[i] = make(chan struct{})
 		go fork(i)
 	}
 
