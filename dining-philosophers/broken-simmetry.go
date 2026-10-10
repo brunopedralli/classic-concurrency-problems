@@ -6,17 +6,17 @@ import (
 )
 
 const N = 5 // philosophers/forks
-const R = 2 // iterations
+const R = 100 // iterations
 
 var forks [N]chan struct{}
 
 func think(i int) {
-	fmt.Printf("Hmmm... Philosopher %d thinking...\n", i)
+	fmt.Printf("Hmmm... Philosopher %d is thinking...\n", i)
 	time.Sleep(time.Second * 3)
 }
 
 func eat(i int) {
-	fmt.Printf("Yummy! Philosopher %d eating...\n", i)
+	fmt.Printf("Yummy! Philosopher %d is eating...\n", i)
 	time.Sleep(time.Second * 3)
 }
 
@@ -59,7 +59,9 @@ func philosopher(i int) {
 
 		eat(i)
 		releaseForks(i)
+		fmt.Printf("\n[INFO] Philosopher %d finished eating! Meals eaten: %d/%d\n\n", i, j+1, R)
 	}
+	fmt.Printf("\n[FINISHED] Philosopher %d has eaten all of his %d meals!\n\n", i, R)
 }
 
 func main() {

@@ -6,7 +6,7 @@ import (
 )
 
 const N = 5 // philosophers/forks
-const R = 2 // iterations
+const R = 100 // iterations
 const LIMIT = 3 // number of philosophers dining at a time
 
 var forks [N]chan struct{}
@@ -14,12 +14,12 @@ var limit = make(chan struct{}, LIMIT)
 
 
 func think(i int) {
-	fmt.Printf("Hmmm... Philosopher %d thinking...\n", i)
+	fmt.Printf("Hmmm... Philosopher %d is thinking...\n", i)
 	time.Sleep(time.Second * 3)
 }
 
 func eat(i int) {
-	fmt.Printf("Yummy! Philosopher %d eating...\n", i)
+	fmt.Printf("Yummy! Philosopher %d is eating...\n", i)
 	time.Sleep(time.Second * 3)
 }
 
@@ -53,7 +53,9 @@ func philosopher(i int) {
 		takeForks(i)
 		eat(i)
 		releaseForks(i)
+		fmt.Printf("\n[INFO] Philosopher %d finished eating! Meals eaten: %d/%d\n\n", i, j+1, R)
 	}
+	fmt.Printf("\n[FINISHED] Philosopher %d has eaten all of his %d meals!\n\n", i, R)
 }
 
 func main() {
