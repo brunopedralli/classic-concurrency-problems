@@ -9,14 +9,24 @@ permissions:
 
 jobs:
   golangci:
-    name: lint
+    name: go-lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version: 1.27
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.14
+    - uses: actions/checkout@v6
+
+    - uses: tj-actions/changed-files@v47
+      id: changed-files
+      with:
+        files: '**/*.go'
+        separator: ","
+
+    - uses: actions/setup-go@v6
+      if: steps.changed-files.outputs.any_changed == 'true'
+      with:
+        go-version: 1.27
+        
+    - name: golangci-lint
+      if: steps.changed-files.outputs.any_changed == 'true'
+      uses: golangci/golangci-lint-action@v9
+      with:
+        version: v2.14
