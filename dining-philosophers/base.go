@@ -52,11 +52,12 @@ func philosopher(i int) {
 func main() {
 	for i := 0; i < N; i++ {
 		forks[i] = make(chan bool)
+		go fork(i)
 	}
+
 	for i := 0; i < R; i++ {
 		for j := 0; j < N; j++ {
 			go philosopher(j)
-			go fork(j)
 		}
 	}
 	select {}
