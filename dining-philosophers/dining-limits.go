@@ -8,7 +8,7 @@ import (
 
 const N = 5 // philosophers/forks
 const R = 100 // iterations
-const LIMIT = 3 // number of philosophers dining at a time
+const LIMIT = N - 1 // number of philosophers dining at a time
 
 var forks [N]chan struct{}
 var limit = make(chan struct{}, LIMIT)
@@ -64,7 +64,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(N)
 
-	for i := 0; i < LIMIT - 1; i++ {
+	for i := 0; i < LIMIT; i++ {
 		limit <- struct{}{}
 	}
 
