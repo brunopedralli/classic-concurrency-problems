@@ -35,7 +35,7 @@ func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}) {
 		case <-closed:
 			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
 			return
-			
+
 		default:
 			num := produce()
 			ch <- num
@@ -69,7 +69,7 @@ func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}) {
 
 func main() {
 	ch := make(chan int, K)
-	closed := make(chan struct{}, P)
+	closed = make(chan struct{}, P)
 
 	producerMutex := make(chan struct{}, 1)
 	producerMutex <- struct{}{}
