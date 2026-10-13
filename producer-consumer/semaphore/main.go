@@ -75,6 +75,7 @@ func consumer(notFull chan<- struct{}, notEmpty <-chan struct{}, buffer <-chan i
 func main() {
 	buffer := make(chan int, K)        // finite queue
 	notEmpty := make(chan struct{}, C) // initialized with 0
+	notFull := make(chan struct{}, K)  // initialized with K
 
 	producerMutex := make(chan struct{}, 1)
 	producerMutex <- struct{}{}
@@ -84,8 +85,7 @@ func main() {
 
 	closed = make(chan struct{}, P)
 
-	notFull := make(chan struct{}, P) // initialized with P
-	for i := 0; i < P; i++ {
+	for i := 0; i < K; i++ {
 		notFull <- struct{}{}
 	}
 
