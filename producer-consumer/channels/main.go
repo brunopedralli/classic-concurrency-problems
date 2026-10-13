@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 const P = 2 // number of producers
 const C = 5 // number of consumers
 const K = 3 // shared buffer size
+
+const TIME_LIMIT_MS = 100
 
 var produced = 0
 var consumed = 0
@@ -32,9 +35,15 @@ func producer(ch chan<- int) {
 
 func consumer(ch <-chan int) {
 	for {
-		num := <-ch
-		consume(num)
-		consumed++
+		select {
+		case num := <-ch:
+			consume(num)
+			consumed++
+
+		case <-time.After(time.Millisecond * TIME_LIMIT_MS):
+			fmt.Printf("[DEBUG] No item has arrived in time. Returning...")
+			return
+		}
 	}
 }
 

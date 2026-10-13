@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 const P = 2 // number of producers
 const C = 5 // number of consumers
 const K = 3 // shared buffer size
+
+const TIME_LIMIT_MS = 100
 
 var produced = 0
 var consumed = 0
@@ -34,11 +37,17 @@ func producer(notFull <-chan struct{}, notEmpty chan<- struct{}, buffer chan<- i
 
 func consumer(notFull chan<- struct{}, notEmpty <-chan struct{}, buffer <-chan int) {
 	for {
-		<-notEmpty
-		num := <-buffer
-		notFull <- struct{}{}
-		consume(num)
-		consumed++
+		select {
+		case <-notEmpty:
+			num := <-buffer
+			notFull <- struct{}{}
+			consume(num)
+			consumed++
+
+		case <-time.After(time.Millisecond * TIME_LIMIT_MS):
+			fmt.Printf("[DEBUG] No item has arrived in time. Returning...")
+			return
+		}
 	}
 }
 
