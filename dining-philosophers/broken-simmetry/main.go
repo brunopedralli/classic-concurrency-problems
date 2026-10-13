@@ -68,7 +68,6 @@ func philosopher(i int, wg *sync.WaitGroup) {
 
 func main() {
 	var wg sync.WaitGroup
-	wg.Add(N)
 
 	for i := 0; i < N; i++ {
 		forks[i] = make(chan struct{})
@@ -76,6 +75,7 @@ func main() {
 	}
 
 	for i := 0; i < N; i++ {
+		wg.Add(N)
 		go philosopher(i, &wg)
 	}
 
