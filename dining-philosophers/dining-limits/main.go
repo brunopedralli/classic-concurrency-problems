@@ -6,13 +6,12 @@ import (
 	"time"
 )
 
-const N = 5 // philosophers/forks
-const R = 100 // iterations
+const N = 5         // philosophers/forks
+const R = 100       // iterations
 const LIMIT = N - 1 // number of philosophers dining at a time
 
 var forks [N]chan struct{}
 var limit = make(chan struct{}, LIMIT)
-
 
 func think(i int) {
 	fmt.Printf("Hmmm... Philosopher %d is thinking...\n", i)

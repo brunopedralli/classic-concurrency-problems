@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const N = 5 // philosophers/forks
+const N = 5   // philosophers/forks
 const R = 100 // iterations
 
 var forks [N]chan struct{}
@@ -53,7 +53,7 @@ func philosopher(i int, wg *sync.WaitGroup) {
 	for j := 0; j < R; j++ {
 		think(i)
 
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			takeLeftForkFirst(i)
 		} else {
 			takeRightForkFirst(i)

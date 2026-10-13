@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const N = 5 // philosophers/forks
+const N = 5   // philosophers/forks
 const R = 100 // iterations
 
 var forks [N]chan struct{}
