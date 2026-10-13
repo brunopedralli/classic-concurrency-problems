@@ -51,8 +51,13 @@ func main() {
 		notFull <- struct{}{}
 	}
 
-	go producer(notFull, notEmpty, buffer)
-	go consumer(notFull, notEmpty, buffer)
+	for i := 0; i < P; i++ {
+		go producer(notFull, notEmpty, buffer)
+	}
+
+	for i := 0; i < C; i++ {
+		go consumer(notFull, notEmpty, buffer)
+	}
 
 	fmt.Printf("[INFO] Produced total: %d", produced)
 	fmt.Printf("[INFO] Consumed total: %d", consumed)
