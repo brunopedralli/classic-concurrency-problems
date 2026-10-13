@@ -31,20 +31,19 @@ func consume(num int) {
 func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}) {
 	defer wg.Done()
 	for {
+		num := produce()
+
 		select {
-		case <-closed:
-			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
-			return
-
-		default:
-			num := produce()
-			ch <- num
-
+		case ch <- num:
 			<-mutex
 			produced++
 			mutex <- struct{}{}
 
 			fmt.Printf("[INFO] Produced %d!\n", num)
+
+		case <-closed:
+			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
+			return
 		}
 	}
 }
