@@ -61,7 +61,7 @@ func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}) {
 			mutex <- struct{}{}
 
 		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
-			fmt.Printf("[DEBUG] No item has arrived in time. Returning...")
+			fmt.Printf("[DEBUG] No item has arrived in time. Returning...\n")
 			return
 		}
 	}
@@ -99,7 +99,8 @@ func main() {
 	producerWg.Wait()
 	consumerWg.Wait()
 
-	fmt.Printf("[INFO] Produced total: %d", produced)
-	fmt.Printf("[INFO] Consumed total: %d", consumed)
-	fmt.Printf("[INFO] Are total produced and consumed equal? %t!", produced == consumed)
+	fmt.Print("\n=================================\n\n")
+	fmt.Printf("[INFO] Produced total: %d\n", produced)
+	fmt.Printf("[INFO] Consumed total: %d\n", consumed)
+	fmt.Printf("[INFO] Are total produced and consumed equal? %t\n", produced == consumed)
 }

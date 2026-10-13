@@ -35,7 +35,7 @@ func producer(notFull <-chan struct{}, notEmpty chan<- struct{}, buffer chan<- i
 		case <-closed:
 			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
 			return
-			
+
 		default:
 			num := produce()
 
@@ -110,6 +110,7 @@ func main() {
 	producerWg.Wait()
 	consumerWg.Wait()
 
+	fmt.Print("\n=================================\n\n")
 	fmt.Printf("[INFO] Produced total: %d\n", produced)
 	fmt.Printf("[INFO] Consumed total: %d\n", consumed)
 	fmt.Printf("[INFO] Are total produced and consumed equal? %t\n", produced == consumed)
