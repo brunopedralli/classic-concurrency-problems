@@ -1,0 +1,106 @@
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"sync"
+	"time"
+)
+
+const P = 2 // number of producers
+const C = 5 // number of consumers
+const K = 3 // shared buffer size
+
+const PRODUCERS_TIME_LIMIT_S = 5
+const CONSUMERS_TIME_LIMIT_MS = 100
+
+var produced = 0
+var consumed = 0
+
+func produce() int {
+	num := rand.Intn(100)
+	return num
+}
+
+func consume(num int) {
+	fmt.Printf("[INFO] Consuming %d...\n", num)
+}
+
+func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}, done <-chan struct{}) {
+	defer wg.Done()
+	for {
+		num := produce()
+
+		select {
+		case ch <- num:
+			<-mutex
+			produced++
+			mutex <- struct{}{}
+
+			fmt.Printf("[INFO] Produced %d!\n", num)
+
+		case <-done:
+			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
+			return
+		}
+	}
+}
+
+func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}) {
+	defer wg.Done()
+	for {
+		select {
+		case num, ok := <-ch:
+			if !ok {
+				fmt.Printf("[DEBUG] Buffer has been closed. Returning...\n")
+				return
+			}
+
+			consume(num)
+			<-mutex
+			consumed++
+			mutex <- struct{}{}
+
+		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
+			fmt.Printf("[DEBUG] No item has arrived in time. Doing something else...\n")
+			return
+		}
+	}
+}
+
+func main() {
+	ch := make(chan int, K)
+	done := make(chan struct{})
+
+	producerMutex := make(chan struct{}, 1)
+	producerMutex <- struct{}{}
+
+	consumerMutex := make(chan struct{}, 1)
+	consumerMutex <- struct{}{}
+
+	var producerWg sync.WaitGroup
+	var consumerWg sync.WaitGroup
+
+	for i := 0; i < P; i++ {
+		producerWg.Add(1)
+		go producer(ch, &producerWg, producerMutex, done)
+	}
+
+	for i := 0; i < C; i++ {
+		consumerWg.Add(1)
+		go consumer(ch, &consumerWg, consumerMutex)
+	}
+
+	time.Sleep(time.Second * PRODUCERS_TIME_LIMIT_S)
+
+	close(done)
+	producerWg.Wait()
+
+	close(ch)
+	consumerWg.Wait()
+
+	fmt.Print("\n=================================\n\n")
+	fmt.Printf("[INFO] Produced total: %d\n", produced)
+	fmt.Printf("[INFO] Consumed total: %d\n", consumed)
+	fmt.Printf("[INFO] Are total produced and consumed equal? %t\n", produced == consumed)
+}
