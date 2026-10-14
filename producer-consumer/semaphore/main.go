@@ -17,8 +17,6 @@ const CONSUMERS_TIME_LIMIT_MS = 100
 var produced = 0
 var consumed = 0
 
-var closed chan struct{}
-
 func produce() int {
 	num := rand.Intn(100)
 	return num
@@ -28,18 +26,13 @@ func consume(num int) {
 	fmt.Printf("[INFO] Consuming %d...\n", num)
 }
 
-func producer(notFull <-chan struct{}, notEmpty chan<- struct{}, buffer chan<- int, wg *sync.WaitGroup, mutex chan struct{}) {
+func producer(notFull <-chan struct{}, notEmpty chan<- struct{}, buffer chan<- int, wg *sync.WaitGroup, mutex chan struct{}, done <-chan struct{}) {
 	defer wg.Done()
 	for {
+		num := produce()
+
 		select {
-		case <-closed:
-			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
-			return
-
-		default:
-			num := produce()
-
-			<-notFull
+		case <-notFull:
 			buffer <- num
 			notEmpty <- struct{}{}
 
@@ -48,11 +41,15 @@ func producer(notFull <-chan struct{}, notEmpty chan<- struct{}, buffer chan<- i
 			mutex <- struct{}{}
 
 			fmt.Printf("[INFO] Produced %d!\n", num)
+
+		case <-done:
+			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
+			return
 		}
 	}
 }
 
-func consumer(notFull chan<- struct{}, notEmpty <-chan struct{}, buffer <-chan int, wg *sync.WaitGroup, mutex chan struct{}) {
+func consumer(notFull chan<- struct{}, notEmpty <-chan struct{}, buffer <-chan int, wg *sync.WaitGroup, mutex chan struct{}, done <-chan struct{}) {
 	defer wg.Done()
 	for {
 		select {
@@ -65,25 +62,34 @@ func consumer(notFull chan<- struct{}, notEmpty <-chan struct{}, buffer <-chan i
 			consumed++
 			mutex <- struct{}{}
 
-		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
-			fmt.Printf("[DEBUG] No item has arrived in time. Returning...\n")
+		case <-done:
+			for num := range buffer {
+				consume(num)
+
+				<-mutex
+				consumed++
+				mutex <- struct{}{}
+			}
+			fmt.Printf("[DEBUG] Buffer has been drained. Returning...\n")
 			return
+
+		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
+			fmt.Printf("[DEBUG] No item has arrived in time. Doing something else...\n")
 		}
 	}
 }
 
 func main() {
 	buffer := make(chan int, K)        // finite queue
-	notEmpty := make(chan struct{}, C) // initialized with 0
+	notEmpty := make(chan struct{}, K) // initialized with 0
 	notFull := make(chan struct{}, K)  // initialized with K
+	done := make(chan struct{})
 
 	producerMutex := make(chan struct{}, 1)
 	producerMutex <- struct{}{}
 
 	consumerMutex := make(chan struct{}, 1)
 	consumerMutex <- struct{}{}
-
-	closed = make(chan struct{}, P)
 
 	for i := 0; i < K; i++ {
 		notFull <- struct{}{}
@@ -92,22 +98,21 @@ func main() {
 	var producerWg sync.WaitGroup
 	for i := 0; i < P; i++ {
 		producerWg.Add(1)
-		go producer(notFull, notEmpty, buffer, &producerWg, producerMutex)
+		go producer(notFull, notEmpty, buffer, &producerWg, producerMutex, done)
 	}
 
 	var consumerWg sync.WaitGroup
 	for i := 0; i < C; i++ {
 		consumerWg.Add(1)
-		go consumer(notFull, notEmpty, buffer, &consumerWg, consumerMutex)
+		go consumer(notFull, notEmpty, buffer, &consumerWg, consumerMutex, done)
 	}
 
 	time.Sleep(time.Second * PRODUCERS_TIME_LIMIT_S)
 
-	for i := 0; i < P; i++ {
-		closed <- struct{}{}
-	}
-
+	close(done)
 	producerWg.Wait()
+
+	close(buffer)
 	consumerWg.Wait()
 
 	fmt.Print("\n=================================\n\n")

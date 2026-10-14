@@ -17,8 +17,6 @@ const CONSUMERS_TIME_LIMIT_MS = 100
 var produced = 0
 var consumed = 0
 
-var closed chan struct{}
-
 func produce() int {
 	num := rand.Intn(100)
 	return num
@@ -28,7 +26,7 @@ func consume(num int) {
 	fmt.Printf("[INFO] Consuming %d...\n", num)
 }
 
-func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}) {
+func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}, done <-chan struct{}) {
 	defer wg.Done()
 	for {
 		num := produce()
@@ -41,7 +39,7 @@ func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}) {
 
 			fmt.Printf("[INFO] Produced %d!\n", num)
 
-		case <-closed:
+		case <-done:
 			fmt.Printf("[DEBUG] Received signal to stop producing. Returning...\n")
 			return
 		}
@@ -52,15 +50,19 @@ func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}) {
 	defer wg.Done()
 	for {
 		select {
-		case num := <-ch:
-			consume(num)
+		case num, ok := <-ch:
+			if !ok {
+				fmt.Printf("[DEBUG] Buffer has been closed. Returning...\n")
+				return
+			}
 
+			consume(num)
 			<-mutex
 			consumed++
 			mutex <- struct{}{}
 
 		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
-			fmt.Printf("[DEBUG] No item has arrived in time. Returning...\n")
+			fmt.Printf("[DEBUG] No item has arrived in time. Doing something else...\n")
 			return
 		}
 	}
@@ -68,7 +70,7 @@ func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}) {
 
 func main() {
 	ch := make(chan int, K)
-	closed = make(chan struct{}, P)
+	done := make(chan struct{})
 
 	producerMutex := make(chan struct{}, 1)
 	producerMutex <- struct{}{}
@@ -81,7 +83,7 @@ func main() {
 
 	for i := 0; i < P; i++ {
 		producerWg.Add(1)
-		go producer(ch, &producerWg, producerMutex)
+		go producer(ch, &producerWg, producerMutex, done)
 	}
 
 	for i := 0; i < C; i++ {
@@ -91,11 +93,10 @@ func main() {
 
 	time.Sleep(time.Second * PRODUCERS_TIME_LIMIT_S)
 
-	for i := 0; i < P; i++ {
-		closed <- struct{}{}
-	}
-
+	close(done)
 	producerWg.Wait()
+
+	close(ch)
 	consumerWg.Wait()
 
 	fmt.Print("\n=================================\n\n")
