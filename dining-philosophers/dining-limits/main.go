@@ -72,7 +72,7 @@ func main() {
 	}
 
 	for i := 0; i < N; i++ {
-		wg.Add(N)
+		wg.Add(1)
 		go philosopher(i, &wg)
 	}
 
