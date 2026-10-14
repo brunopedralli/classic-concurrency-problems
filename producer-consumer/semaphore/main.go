@@ -17,6 +17,9 @@ const CONSUMERS_TIME_LIMIT_MS = 100
 var produced = 0
 var consumed = 0
 
+var bufferSum = 0
+var bufferSamples = 0
+
 func produce() int {
 	num := rand.Intn(100)
 	return num
@@ -38,6 +41,8 @@ func producer(notFull <-chan struct{}, notEmpty chan<- struct{}, buffer chan<- i
 
 			<-mutex
 			produced++
+			bufferSum += len(buffer)
+			bufferSamples++
 			mutex <- struct{}{}
 
 			fmt.Printf("[INFO] Produced %d!\n", num)
@@ -49,28 +54,38 @@ func producer(notFull <-chan struct{}, notEmpty chan<- struct{}, buffer chan<- i
 	}
 }
 
-func consumer(notFull chan<- struct{}, notEmpty <-chan struct{}, buffer <-chan int, wg *sync.WaitGroup, mutex chan struct{}, done <-chan struct{}) {
+func consumer(notFull chan<- struct{}, notEmpty <-chan struct{}, buffer <-chan int, wg *sync.WaitGroup, mutex chan struct{}, done <-chan struct{}, localTotal chan<- int) {
 	defer wg.Done()
+	defer close(localTotal)
+	localConsumed := 0
+
 	for {
 		select {
 		case <-notEmpty:
 			num := <-buffer
 			notFull <- struct{}{}
 			consume(num)
+			localConsumed++
 
 			<-mutex
 			consumed++
+			bufferSum += len(buffer)
+			bufferSamples++
 			mutex <- struct{}{}
 
 		case <-done:
 			for num := range buffer {
 				consume(num)
+				localConsumed++
 
 				<-mutex
 				consumed++
+				bufferSum += len(buffer)
+				bufferSamples++
 				mutex <- struct{}{}
 			}
 			fmt.Printf("[DEBUG] Buffer has been drained. Returning...\n")
+			localTotal <- localConsumed
 			return
 
 		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
@@ -91,9 +106,16 @@ func main() {
 	consumerMutex := make(chan struct{}, 1)
 	consumerMutex <- struct{}{}
 
+	consumedTotals := make([]chan int, C)
+	for i := 0; i < C; i++ {
+		consumedTotals[i] = make(chan int, 1)
+	}
+
 	for i := 0; i < K; i++ {
 		notFull <- struct{}{}
 	}
+
+	startTime := time.Now()
 
 	var producerWg sync.WaitGroup
 	for i := 0; i < P; i++ {
@@ -104,7 +126,7 @@ func main() {
 	var consumerWg sync.WaitGroup
 	for i := 0; i < C; i++ {
 		consumerWg.Add(1)
-		go consumer(notFull, notEmpty, buffer, &consumerWg, consumerMutex, done)
+		go consumer(notFull, notEmpty, buffer, &consumerWg, consumerMutex, done, consumedTotals[i])
 	}
 
 	time.Sleep(time.Second * PRODUCERS_TIME_LIMIT_S)
@@ -115,8 +137,24 @@ func main() {
 	close(buffer)
 	consumerWg.Wait()
 
+	totalDuration := time.Since(startTime)
+
+	avgOccupancy := 0.0
+	if bufferSamples > 0 {
+		avgOccupancy = float64(bufferSum) / float64(bufferSamples)
+	}
+
 	fmt.Print("\n=================================\n\n")
+	fmt.Printf("[INFO] Total duration: %v\n", totalDuration)
+	fmt.Printf("[INFO] Total throughput: %.2f items/second\n", float64(consumed)/totalDuration.Seconds())
+	fmt.Printf("[INFO] Average buffer occupancy: %.2f\n", avgOccupancy)
+
 	fmt.Printf("[INFO] Produced total: %d\n", produced)
 	fmt.Printf("[INFO] Consumed total: %d\n", consumed)
 	fmt.Printf("[INFO] Are total produced and consumed equal? %t\n", produced == consumed)
+
+	fmt.Print("\n=================================\n\n")
+	for i := 0; i < C; i++ {
+		fmt.Printf("[INFO] Consumer %d - Total consumed: %d\n", i, <-consumedTotals[i])
+	}
 }

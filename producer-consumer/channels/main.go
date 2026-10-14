@@ -17,6 +17,9 @@ const CONSUMERS_TIME_LIMIT_MS = 100
 var produced = 0
 var consumed = 0
 
+var bufferSum = 0
+var bufferSamples = 0
+
 func produce() int {
 	num := rand.Intn(100)
 	return num
@@ -35,6 +38,8 @@ func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}, done <-cha
 		case ch <- num:
 			<-mutex
 			produced++
+			bufferSum += len(ch)
+			bufferSamples++
 			mutex <- struct{}{}
 
 			fmt.Printf("[INFO] Produced %d!\n", num)
@@ -46,19 +51,27 @@ func producer(ch chan<- int, wg *sync.WaitGroup, mutex chan struct{}, done <-cha
 	}
 }
 
-func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}) {
+func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}, localTotal chan<- int) {
 	defer wg.Done()
+	defer close(localTotal)
+	localConsumed := 0
+
 	for {
 		select {
 		case num, ok := <-ch:
 			if !ok {
 				fmt.Printf("[DEBUG] Buffer has been closed. Returning...\n")
+				localTotal <- localConsumed
 				return
 			}
 
 			consume(num)
+			localConsumed++
+
 			<-mutex
 			consumed++
+			bufferSum += len(ch)
+			bufferSamples++
 			mutex <- struct{}{}
 
 		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
@@ -81,6 +94,13 @@ func main() {
 	var producerWg sync.WaitGroup
 	var consumerWg sync.WaitGroup
 
+	consumedTotals := make([]chan int, C)
+	for i := 0; i < C; i++ {
+		consumedTotals[i] = make(chan int, 1)
+	}
+
+	startTime := time.Now()
+
 	for i := 0; i < P; i++ {
 		producerWg.Add(1)
 		go producer(ch, &producerWg, producerMutex, done)
@@ -88,7 +108,7 @@ func main() {
 
 	for i := 0; i < C; i++ {
 		consumerWg.Add(1)
-		go consumer(ch, &consumerWg, consumerMutex)
+		go consumer(ch, &consumerWg, consumerMutex, consumedTotals[i])
 	}
 
 	time.Sleep(time.Second * PRODUCERS_TIME_LIMIT_S)
@@ -99,8 +119,24 @@ func main() {
 	close(ch)
 	consumerWg.Wait()
 
+	totalDuration := time.Since(startTime)
+
+	avgOccupancy := 0.0
+	if bufferSamples > 0 {
+		avgOccupancy = float64(bufferSum) / float64(bufferSamples)
+	}
+
 	fmt.Print("\n=================================\n\n")
+	fmt.Printf("[INFO] Total duration: %v\n", totalDuration)
+	fmt.Printf("[INFO] Total throughput: %.2f items/second\n", float64(consumed)/totalDuration.Seconds())
+	fmt.Printf("[INFO] Average buffer occupancy: %.2f\n", avgOccupancy)
+
 	fmt.Printf("[INFO] Produced total: %d\n", produced)
 	fmt.Printf("[INFO] Consumed total: %d\n", consumed)
 	fmt.Printf("[INFO] Are total produced and consumed equal? %t\n", produced == consumed)
+
+	fmt.Print("\n=================================\n\n")
+	for i := 0; i < C; i++ {
+		fmt.Printf("[INFO] Consumer %d - Total consumed: %d\n", i, <-consumedTotals[i])
+	}
 }
