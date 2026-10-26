@@ -76,7 +76,6 @@ func consumer(ch <-chan int, wg *sync.WaitGroup, mutex chan struct{}, localTotal
 
 		case <-time.After(time.Millisecond * CONSUMERS_TIME_LIMIT_MS):
 			fmt.Printf("[DEBUG] No item has arrived in time. Doing something else...\n")
-			return
 		}
 	}
 }
